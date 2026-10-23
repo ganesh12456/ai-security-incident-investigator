@@ -6,7 +6,8 @@ small trained text classifier, scores findings with explicit rules, and exports
 reports whose claims cite source events.
 
 **Status:** source is published on GitHub and local/GitHub checks pass.
-Catalyst deployment and live URL verification are pending.
+The dedicated Catalyst project exists; deployment and live URL verification
+are pending.
 
 ## Demo workflow
 
@@ -75,21 +76,12 @@ Node server also serves the static client for development.
 
 ## Deploy on Zoho Catalyst
 
-1. Create a project in your Catalyst India organization. Check the monthly
-   account-wide Basic allowance before enabling production.
-2. Link this repository to the new Catalyst project. The root
-   `catalyst.json`, the function's `catalyst-config.json`, and
-   `client/client-package.json` are included for CLI/Pipelines deployment.
-3. Deploy the client and the `investigator` Advanced I/O function to the
-   development environment. The function bundles all fixtures within its own
-   directory; no outside files or runtime downloads are required.
-4. Verify `/server/investigator/api/health`, then open the web client and
-   investigate `ALT-1001` and `ALT-1002`.
-5. Review costs and perform the first migration to production from the
-   Catalyst console, then repeat the URL and report checks. Catalyst requires
-   a configured payment method for its first production migration.
+The dedicated project is `AI-incident-investigator` in the India data center.
+Follow [the deployment guide](docs/deployment.md) to set a Catalyst CLI token
+as a GitHub Actions secret and run the manual development deployment workflow.
+The function bundles its fixtures and needs no runtime downloads. Check the
+project's Basic allowance before moving the app to production.
 
-The CLI may require the project to be initialized or selected on first use.
 If Catalyst adjusts the generated project or function metadata, sync the
 canonical `catalyst.json` files back to this repository.
 
