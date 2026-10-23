@@ -4,6 +4,36 @@ This repository targets Catalyst organization `60077364156`, India data center,
 project `AI-incident-investigator` (`54566000000077001`). The deployment
 workflow runs only when started manually and deploys only to **Development**.
 
+## Use the Catalyst website without a CLI token
+
+Open the `AI-incident-investigator` project in the [Catalyst console](https://console.catalyst.zoho.com/).
+The direct upload method works even when the older GitHub integration is not
+available on your account.
+
+1. Upload the **function ZIP**: **Serverless** → **FAAS** → **Functions** →
+   **Create Function**. Select **Advanced I/O**, name it exactly `investigator`,
+   select **Node.js 20**, choose **File Upload**, and upload the ZIP containing
+   the contents of `functions/investigator/` at the ZIP root. In particular,
+   `catalyst-config.json`, `index.js`, and `package.json` must be at the root.
+2. Upload the **web client ZIP**: **Cloud Scale** → **Host & Manage** →
+   **Web Client Hosting** → **Upload**. The ZIP must contain the contents of
+   `client/` at its root, including `client-package.json` and `index.html`.
+3. Open the development web app URL shown in **Web Client Hosting**. Check
+   `/server/investigator/api/health` on the same domain, then investigate
+   `ALT-1001` in the UI. This demo uses fictional alerts only.
+
+If the console offers **Catalyst DevOps** → **Repositories** → **Git**, you
+can instead integrate the `ganesh12456` GitHub account, choose
+`ganesh12456/ai-security-incident-investigator`, and deploy from the website.
+Catalyst limits this older integration to accounts active before July 2024 or
+accounts that already integrated GitHub. If it is absent, use the ZIP uploads.
+
+To create the ZIPs from this repository, archive the *contents* of each source
+folder separately, with no enclosing `investigator/` or `client/` directory.
+The project root ZIP from GitHub cannot be uploaded to either component as is.
+
+## Optional GitHub Actions deployment with a CLI token
+
 ## One-time credential setup
 
 Generate a Catalyst CLI token on your own computer. Do not paste it into a

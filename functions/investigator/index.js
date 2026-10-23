@@ -73,4 +73,7 @@ if(require.main===module){
   const port=Number(process.env.X_ZOHO_CATALYST_LISTEN_PORT||process.env.PORT||9000);
   http.createServer(handler).listen(port,()=>console.log('Investigator listening on '+port));
 }
-module.exports={handler};
+// Catalyst invokes the exported request listener; the local process above
+// starts an HTTP server for development.
+module.exports=handler;
+module.exports.handler=handler;

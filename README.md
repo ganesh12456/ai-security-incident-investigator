@@ -77,8 +77,9 @@ Node server also serves the static client for development.
 ## Deploy on Zoho Catalyst
 
 The dedicated project is `AI-incident-investigator` in the India data center.
-Follow [the deployment guide](docs/deployment.md) to set a Catalyst CLI token
-as a GitHub Actions secret and run the manual development deployment workflow.
+Follow [the deployment guide](docs/deployment.md) to upload the two console
+bundles, or use GitHub integration if it is available in your Catalyst account.
+The GitHub Actions workflow is an optional CLI-token deployment method.
 The function bundles its fixtures and needs no runtime downloads. Check the
 project's Basic allowance before moving the app to production.
 
