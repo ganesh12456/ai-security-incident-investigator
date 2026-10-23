@@ -1,0 +1,13 @@
+{
+  "name": "ai-security-incident-investigator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Evidence-first synthetic security incident investigation demo",
+  "scripts": {
+    "start": "node functions/investigator/index.js",
+    "test": "node --test tests/*.test.js",
+    "benchmark": "node scripts/benchmark.js",
+    "check": "node --check functions/investigator/index.js && node --check client/main.js && npm test"
+  },
+  "engines": { "node": ">=20" }
+}

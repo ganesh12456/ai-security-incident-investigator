@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "targets": ["investigator"],
+    "source": "functions"
+  },
+  "client": {
+    "source": "client"
+  }
+}
