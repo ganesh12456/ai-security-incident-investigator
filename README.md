@@ -5,8 +5,8 @@ portfolio demo. It correlates security events, suggests an alert category with a
 small trained text classifier, scores findings with explicit rules, and exports
 reports whose claims cite source events.
 
-**Status:** implementation and local checks are complete. GitHub publication,
-Catalyst deployment, and live URL verification are separate release gates.
+**Status:** source is published on GitHub and local/GitHub checks pass.
+Catalyst deployment and live URL verification are pending.
 
 ## Demo workflow
 
