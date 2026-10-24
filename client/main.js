@@ -11,6 +11,9 @@
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const timestamp=value=>new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'UTC',hour12:false}).format(new Date(value))+' UTC';
   async function api(path, options){
+    // Slate serves the same synthetic investigation engine in the browser.
+    // Catalyst Web Client Hosting continues to call its Advanced I/O function.
+    if(window.SignalDeskDemo) return window.SignalDeskDemo.api(path,options);
     const response=await fetch(base+path,options);
     let data;
     try{data=await response.json();}catch{throw new Error('The API returned an unreadable response.');}
@@ -136,7 +139,14 @@
       caseView();document.getElementById('source-evidence')?.scrollIntoView({behavior:'smooth',block:'nearest'});
     }else if(target.dataset.filter){state.filter=target.dataset.filter;queue();}
     else if(target.dataset.action==='queue'){queue();}
-    else if(target.dataset.action==='export'&&state.result){location.href=base+'/api/investigations/'+encodeURIComponent(state.result.id)+'/report';}
+    else if(target.dataset.action==='export'&&state.result){
+      if(window.SignalDeskDemo){
+        const report=window.SignalDeskDemo.reportText(state.result);
+        const url=URL.createObjectURL(new Blob([report],{type:'text/plain;charset=utf-8'}));
+        const link=document.createElement('a');link.href=url;link.download=state.result.id+'.txt';link.click();
+        setTimeout(()=>URL.revokeObjectURL(url),1000);
+      }else location.href=base+'/api/investigations/'+encodeURIComponent(state.result.id)+'/report';
+    }
     else if(target.dataset.action==='copy'&&state.result){navigator.clipboard?.writeText(state.result.id);target.textContent='Copied';}
   });
   root.addEventListener('keydown',e=>{

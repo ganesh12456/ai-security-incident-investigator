@@ -77,6 +77,13 @@ Node server also serves the static client for development.
 ## Deploy on Zoho Catalyst
 
 The dedicated project is `AI-incident-investigator` in the India data center.
+For **Catalyst Slate** Git deployment, the repository root now supports
+`npm run build`, which produces `dist/`. In Slate's advanced options, use
+root `/`, build command `npm run build`, and output path `dist`. This is a
+self-contained browser demo: it runs the same small classifier and evidence
+rules on synthetic cases, without invoking a server API. Slate alone does not
+deploy the `investigator` Advanced I/O function.
+
 Follow [the deployment guide](docs/deployment.md) to upload the two console
 bundles, or use GitHub integration if it is available in your Catalyst account.
 The GitHub Actions workflow is an optional CLI-token deployment method.

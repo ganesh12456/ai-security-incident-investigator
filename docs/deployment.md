@@ -4,6 +4,33 @@ This repository targets Catalyst organization `60077364156`, India data center,
 project `AI-incident-investigator` (`54566000000077001`). The deployment
 workflow runs only when started manually and deploys only to **Development**.
 
+## Deploy this repository with Catalyst Slate from GitHub
+
+The **Slate** Git deployment builds a static website. To fix its default
+`npm run build` step, the repository includes a dependency-free build script.
+The output bundles the same investigation engine and fictional examples for
+execution in the visitor's browser, so all five sample cases and report
+exports work without a separate API. It does **not** deploy a Catalyst
+Advanced I/O function or connect to production security data.
+
+In the existing Slate deployment, select **Sync Now** (or enable Auto Deploy)
+after the fix is pushed to `main`. Under **Show Advanced Options**, set:
+
+| Setting | Value |
+| --- | --- |
+| Repository | `ganesh12456/ai-security-incident-investigator` |
+| Root path | `/` |
+| Node runtime | `22` |
+| Install command | `npm install` |
+| Build command | `npm run build` |
+| Output path | `dist` |
+
+The Slate URL is the browser demo URL. Open it and investigate `ALT-1001`; the
+evidence-linked report should download as text. The endpoint
+`/server/investigator/api/health` applies to the **separate Catalyst Functions
+deployment** on your project domain, not to the Slate URL. For a server-backed
+deployment, use the function and web client steps below in the project console.
+
 ## Use the Catalyst website without a CLI token
 
 Open the `AI-incident-investigator` project in the [Catalyst console](https://console.catalyst.zoho.com/).

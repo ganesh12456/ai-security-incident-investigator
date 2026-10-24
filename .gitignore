@@ -4,6 +4,7 @@ node_modules/
 !.env.example
 .catalyst/
 coverage/
+dist/
 *.log
 *.zip
 client/.DS_Store
