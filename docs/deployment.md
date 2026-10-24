@@ -25,7 +25,8 @@ after the fix is pushed to `main`. Under **Show Advanced Options**, set:
 | Build command | `npm run build` |
 | Output path | `dist` |
 
-The Slate URL is the browser demo URL. Open it and investigate `ALT-1001`; the
+The Slate URL is
+`https://ai-security-incident-zvtkamcv.onslate.in/`. Open it and investigate `ALT-1001`; the
 evidence-linked report should download as text. The endpoint
 `/server/investigator/api/health` applies to the **separate Catalyst Functions
 deployment** on your project domain, not to the Slate URL. For a server-backed

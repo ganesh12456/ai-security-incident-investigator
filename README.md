@@ -5,9 +5,10 @@ portfolio demo. It correlates security events, suggests an alert category with a
 small trained text classifier, scores findings with explicit rules, and exports
 reports whose claims cite source events.
 
-**Status:** source is published on GitHub and local/GitHub checks pass.
-The dedicated Catalyst project exists; deployment and live URL verification
-are pending.
+**Status:** the Slate browser demo is deployed at
+[SignalDesk](https://ai-security-incident-zvtkamcv.onslate.in/), and the local
+and GitHub checks pass. The separate Catalyst Advanced I/O function is not
+deployed yet; a live browser walkthrough is still pending.
 
 ## Demo workflow
 
