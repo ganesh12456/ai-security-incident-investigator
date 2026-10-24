@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b0e13">
-  <meta name="description" content="Evidence-first synthetic incident investigation demo">
+  <meta name="description" content="Import security records and investigate source-linked incidents locally">
   <title>SignalDesk — Incident Investigator</title>
   <link rel="stylesheet" href="/main.css">
   <script defer src="/main.js"></script>
@@ -16,9 +16,9 @@
         <span class="brand-icon" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
         <span><strong>SignalDesk</strong><small>INCIDENT INVESTIGATOR</small></span>
       </a>
-      <div class="workspace-badge"><span class="status-pulse"></span> DEMO WORKSPACE <span class="badge-right">● LIVE</span></div>
+      <div class="workspace-badge"><span class="status-pulse"></span> LOCAL WORKSPACE <span class="badge-right">● PRIVATE</span></div>
       <p class="side-label">WORKSPACE</p>
-      <button class="side-link selected" id="nav-alerts" type="button"><span class="nav-glyph">◫</span> Alert queue <span id="nav-count" class="nav-count">5</span></button>
+      <button class="side-link selected" id="nav-alerts" type="button"><span class="nav-glyph">◫</span> Record queue <span id="nav-count" class="nav-count">0</span></button>
       <button class="side-link" id="nav-about" type="button"><span class="nav-glyph">◈</span> How it works</button>
       <div class="side-spacer"></div>
       <div class="side-card">
@@ -26,21 +26,21 @@
         <strong>Evidence over assumptions.</strong>
         <p>Every conclusion points back to a specific event. No invented incidents.</p>
       </div>
-      <div class="sidebar-foot"><span class="avatar">GP</span><span><strong>Demo analyst</strong><small>Synthetic data only</small></span><span class="chevron">⌄</span></div>
+      <div class="sidebar-foot"><span class="avatar">SD</span><span><strong>Your device</strong><small>Browser local data</small></span><span class="chevron">⌄</span></div>
     </aside>
     <div class="main-shell">
       <header class="topbar">
         <div class="breadcrumb"><span>Security operations</span><span class="slash">/</span><strong id="breadcrumb-current">Alert queue</strong></div>
-        <div class="top-actions"><span class="sample-flag"><span>●</span> SANDBOX DATA</span><a href="https://github.com/ganesh12456" target="_blank" rel="noopener noreferrer" class="top-link">GitHub ↗</a></div>
+        <div class="top-actions"><span class="sample-flag"><span>●</span> LOCAL ANALYSIS</span><a href="https://github.com/ganesh12456/ai-security-incident-investigator" target="_blank" rel="noopener noreferrer" class="top-link">Source ↗</a></div>
       </header>
       <main id="main-content" tabindex="-1">
         <section class="page-heading">
           <div class="eyebrow"><span class="eyebrow-line"></span> SECURITY OPERATIONS / INVESTIGATIONS</div>
-          <div class="heading-row"><div><h1 id="page-title">Alert queue<span class="period">.</span></h1><p class="subhead" id="page-subtitle">Turn scattered signals into a case you can verify.</p></div><div class="heading-meta"><span class="ring-icon">◌</span><span><strong id="last-sync">OCT 22, 2026</strong><small>DEMO EVENT WINDOW</small></span></div></div>
+          <div class="heading-row"><div><h1 id="page-title">Record queue<span class="period">.</span></h1><p class="subhead" id="page-subtitle">Import security records to start an investigation.</p></div><div class="heading-meta"><span class="ring-icon">◌</span><span><strong>ON DEVICE</strong><small>PRIVATE WORKSPACE</small></span></div></div>
         </section>
         <div id="view-root"><div class="loading">Loading the investigation workspace…</div></div>
       </main>
-      <footer class="footer"><span>SignalDesk / Synthetic security scenarios</span><span>Built for evidence-based review · No live systems connected</span></footer>
+      <footer class="footer"><span>SignalDesk / Source-linked investigations</span><span>Your files stay in this browser · Clear site data on shared devices</span></footer>
     </div>
   </div>
 </body>

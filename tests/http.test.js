@@ -3,22 +3,20 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const http=require('node:http');
 const {handler}=require('../functions/investigator/index');
-test('HTTP routes return safe demo data and reject invalid input',async()=>{
+test('stateless function accepts imported records and has no bundled alert queue',async()=>{
   const server=http.createServer(handler).listen(0);
   await new Promise(resolve=>server.once('listening',resolve));
-  const base='http://127.0.0.1:'+server.address().port;
+  const origin='http://127.0.0.1:'+server.address().port;
   try{
-    const alerts=await (await fetch(base+'/api/alerts')).json();
-    assert.equal(alerts.count,5);
-    assert.equal(alerts.alerts[0].seedEventId,undefined);
-    const result=await fetch(base+'/api/investigations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({alertId:'ALT-1001'})});
-    assert.equal(result.status,200);
-    assert.equal((await result.json()).severity,'Critical');
-    const bad=await fetch(base+'/api/investigations',{method:'POST',body:JSON.stringify({alertId:'../../bad'})});
+    const health=await (await fetch(origin+'/api/health')).json();
+    assert.equal(health.storage,'stateless');
+    assert.equal((await fetch(origin+'/api/alerts')).status,404);
+    const records=[{time:'2026-10-24T04:00:00Z',actor:'account-a',action:'login_failed',message:'Failed sign-in'},
+      {time:'2026-10-24T04:03:00Z',actor:'account-a',action:'login_success',message:'Successful sign-in'}];
+    const response=await fetch(origin+'/api/investigations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({seedId:'ROW-00001',records})});
+    assert.equal(response.status,200);
+    assert.deepEqual((await response.json()).findings[0].eventIds,['ROW-00001','ROW-00002']);
+    const bad=await fetch(origin+'/api/investigations',{method:'POST',body:JSON.stringify({seedId:'ROW-00001',records:[{message:'missing time'}]})});
     assert.equal(bad.status,400);
-    const missing=await fetch(base+'/../../etc/passwd');
-    assert.equal(missing.status,404);
-    const report=await fetch(base+'/api/investigations/INV-ALT-1001/report');
-    assert.match(await report.text(),/Evidence: E-101, E-102/);
   }finally{server.close();}
 });

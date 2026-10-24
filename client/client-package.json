@@ -1,6 +1,6 @@
 {
   "name": "security-incident-investigator",
   "version": "0.1.0",
-  "description": "Synthetic, evidence-backed security incident investigation demo",
+  "description": "Local-first, evidence-linked security record investigation",
   "homepage": "index.html"
 }

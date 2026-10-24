@@ -7,15 +7,13 @@ const output=path.join(root,'dist');
 const client=path.join(root,'client');
 const investigator=path.join(root,'functions','investigator');
 const sourceFiles=[
-  'fixtures/scenarios.js',
   'fixtures/model-training.js',
-  'fixtures/kev-snapshot.json',
+  'ingest.js',
   'model.js',
   'engine.js'
 ];
 
-// Bundle only the dependency-free, fictional data and the shared investigation
-// engine. Slate serves static files; it does not deploy the Catalyst function.
+// Slate runs the import and investigation logic on the visitor's device.
 function buildBrowserEngine(){
   const modules=sourceFiles.map(name=>{
     const source=fs.readFileSync(path.join(investigator,name),'utf8');
@@ -27,7 +25,7 @@ function buildBrowserEngine(){
 const factories=Object.create(null),cache=Object.create(null);
 ${modules}
 function load(name){
-  if(!Object.hasOwn(factories,name)) throw new Error('Unknown demo module: '+name);
+  if(!Object.hasOwn(factories,name)) throw new Error('Unknown module: '+name);
   if(Object.hasOwn(cache,name)) return cache[name].exports;
   const module={exports:{}}; cache[name]=module;
   const require=(specifier)=>{
@@ -40,24 +38,9 @@ function load(name){
   factories[name](module,require);
   return module.exports;
 }
-const {alerts}=load('fixtures/scenarios.js');
+const {parseRecords,MAX_BYTES,MAX_ROWS}=load('ingest.js');
 const {investigate,reportText}=load('engine.js');
-const publicAlerts=alerts.map(({seedEventId,...alert})=>alert);
-async function api(route,options={}){
-  if(route==='/api/alerts'&&(!options.method||options.method==='GET'))
-    return {alerts:publicAlerts,count:publicAlerts.length};
-  if(route==='/api/investigations'&&options.method==='POST'){
-    let input;
-    try{input=JSON.parse(options.body||'{}');}catch{throw new Error('Invalid JSON');}
-    if(typeof input.alertId!=='string'||!/^ALT-\\d{4}$/.test(input.alertId))
-      throw new Error('Provide a valid alertId');
-    const result=investigate(input.alertId);
-    if(!result) throw new Error('Alert not found');
-    return result;
-  }
-  throw new Error('Not found');
-}
-window.SignalDeskDemo=Object.freeze({api,reportText});
+window.SignalDeskApp=Object.freeze({parseRecords,investigate,reportText,MAX_BYTES,MAX_ROWS});
 })();\n`;
 }
 

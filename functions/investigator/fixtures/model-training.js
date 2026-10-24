@@ -1,7 +1,7 @@
 'use strict';
 
-// Curated examples are separate from the held-out demo alerts. The model is
-// intentionally small; evaluation documents its limits on synthetic data.
+// Generic category phrases used to train the small local text classifier.
+// These are not incident records or operational evaluation data.
 module.exports = [
   ['credential_access','password spraying failed login followed by successful unfamiliar session'],
   ['credential_access','multiple account lockouts then a new device signed in'],

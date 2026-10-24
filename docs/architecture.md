@@ -1,40 +1,42 @@
-# Investigation decisions
+# Architecture and limits
 
-The public demo answers a narrow question: “What happened around this alert,
-and which records support the answer?”
+## Deployed Slate flow
 
-```text
-Alert → bounded event correlation → text classification + explicit evidence
-      → severity rule score → cited timeline and findings → analyst report
-```
+The static `dist/` build includes the browser UI, input normalization,
+classifier, and evidence engine. The upload uses `File.text()` and is processed
+in memory. After validation, records are kept in the current browser's
+IndexedDB. No external endpoint receives the imported bytes from the Slate
+app. The site starts empty on a new browser profile.
 
-Each case is recomputed from immutable bundled examples. The seed event,
-account, shared asset/address, and ±2-hour time limit bound correlation.
-The event graph must not use the scenario label to select records. Worker
-findings contain only IDs of events returned by correlation; an integrity
-check prevents unsupported findings from leaving the engine.
+Select a record → correlate by identity or asset plus address within ±2 hours
+→ classify text → apply explicit evidence rules → verify finding references
+→ render timeline and source rows → download a text report.
 
-The classifier is a small multinomial Naive Bayes model using 32 manually
-curated synthetic sentences. Its score is the relative probability under
-that simple model, **not** a calibrated probability of compromise. Explicit
-rules determine severity and recommend human review.
+## Optional Catalyst function
 
-Threat intelligence is an offline, manually curated one-entry KEV snapshot.
-A catalog match requires an exact CVE listed on an event, then still states
-that catalog inclusion is not proof of exploitation. The source is CISA's
-public KEV catalog; a full feed refresh is future work.
+`functions/investigator/index.js` exposes:
 
-### Release stages
+- `GET /api/health`: reports stateless mode.
+- `POST /api/investigations`: accepts `{"seedId":"ROW-00001","records":[...]}`,
+  normalizes submitted records, and returns an investigation. It does not
+  store records or run automatically.
 
-1. Local and GitHub: syntax checks, event and API tests, documented benchmark.
-2. Catalyst development: health, hosted client, two guided cases, report export.
-3. Catalyst production: first migration, fresh-browser smoke test, cost guard.
+The function is separate from the Slate deployment. The public Slate URL
+does not implement `/server/investigator`. Do not assume a successful Slate
+build means the optional function is deployed.
 
-### Extensions with separate evaluation gates
+## Boundaries
 
-- Authenticated analyst decisions persisted to Catalyst Data Store.
-- A CISA KEV snapshot with a recorded import date and license provenance.
-- More incident families and independently labeled held-out evaluation cases.
-- QuickML natural-language report polish if enabled and within budget.
-- Live SIEM ingestion only after permissions, data minimization, isolation,
-  access controls, and monitoring are implemented.
+- 5 MB and 2,000 source records per import; 250 correlated records per case.
+- CSV, JSON, NDJSON and JSONL imports with several common field names. Other
+  source schemas may require a mapping before use.
+- No ingestion of live SIEM streams, cloud authentication, shared cases,
+  server-side storage, evidence signing, live threat feeds, or automatic
+  containment. IndexedDB is tied to one browser profile and can be cleared
+  by the browser.
+- Timezone is required to avoid silently shifting event order. Rejected rows
+  are reported, not treated as evidence.
+- The classifier uses a tiny local training corpus. Its output and heuristic
+  severity must be reviewed and are not validated for operational alerts.
+- An imported record may contain sensitive data. Limit access to the device,
+  clear local records when appropriate, and protect downloaded reports.

@@ -1,114 +1,91 @@
-# SignalDesk · AI Security Incident Investigator
+# SignalDesk · Security Incident Investigator
 
-An evidence-first investigation workspace built as an independent, synthetic
-portfolio demo. It correlates security events, suggests an alert category with a
-small trained text classifier, scores findings with explicit rules, and exports
-reports whose claims cite source events.
+SignalDesk imports security records you are authorized to inspect, correlates
+related activity, suggests a category with a small local text classifier, and
+produces source-linked findings, a UTC timeline, and a report. The deployed
+Slate app starts with **zero records**. No sample alerts or customer data are
+bundled.
 
-**Status:** the Slate browser demo is deployed at
-[SignalDesk](https://ai-security-incident-zvtkamcv.onslate.in/), and the local
-and GitHub checks pass. The separate Catalyst Advanced I/O function is not
-deployed yet; a live browser walkthrough is still pending.
+**App:** https://ai-security-incident-zvtkamcv.onslate.in/
 
-## Demo workflow
+## End-to-end workflow
 
-1. Open the alert queue and select one of five fictional alerts.
-2. Run the bounded investigation.
-3. Review a UTC timeline, linked evidence, severity, and limitations.
-4. Select an event ID to inspect the original sample record.
-5. Export a plain-text report. All actions recommended in the report require
-   a human reviewer; the app takes no containment action.
+1. Export security records from your identity, endpoint, or audit system.
+2. Upload a CSV, JSON, NDJSON, or JSONL file (at most 5 MB or 2,000 records).
+3. Inspect accepted and rejected rows. Any accepted record can be the seed.
+4. Run the investigation. Review evidence links and original source rows.
+5. Export the text report. Clear the local records when done.
 
-The five cases cover a potential account takeover with export, an approved
-device change, broad OAuth consent, scheduled build activity, and a flagged
-mail message with a CVE indicator. The last case does not claim exploitation.
+The app runs entirely on the visitor's device in Catalyst Slate. IndexedDB
+persists the imported records in that browser only; if browser storage is
+unavailable, the workspace runs for the current tab session. Replacing a file
+replaces the workspace. No records are sent to a server by the Slate app.
+Use a device and browser profile approved for the sensitivity of the logs.
 
-## Run locally
+### Input requirements
 
-Requirements: Node.js 20 or newer. No paid API keys or npm dependencies.
+Each record needs a timezone-aware timestamp (ISO 8601 with `Z` or an offset,
+or a Unix seconds/milliseconds value), an identity, asset, or IP address, and
+a message or action. Recognized fields include:
+
+| Meaning | Common fields |
+| --- | --- |
+| Time | `@timestamp`, `timestamp`, `time`, `event.created`, `TimeGenerated` |
+| Identity | `user.name`, `user.email`, `actor`, `principal`, `username` |
+| Asset | `host.name`, `asset`, `device.name`, `resource.name` |
+| Address | `source.ip`, `src_ip`, `client.ip`, `ip` |
+| Action | `event.action`, `action`, `operation`, `activity` |
+| Description | `message`, `summary`, `description`, `details` |
+
+JSON may be an array or an object with an `events` array. An
+Elasticsearch-style `hits.hits[]._source` response is also recognized. CSV
+headers can use the dot field names in the table. Each accepted row receives
+an internal `ROW-00001` style reference; a supplied original ID remains visible
+in the evidence panel. Invalid rows are counted and explained.
+
+## How findings work
+
+- Correlation considers at most two hours around the selected record and
+  matches the identity, or the asset together with its address. At most 250
+  related records are shown, including the seed.
+- Rules detect recorded sequences such as failed then successful sign-in,
+  privilege changes, export then download, OAuth consent, token use followed
+  by file access, and endpoint detections. Every finding cites imported rows.
+- A small Naive Bayes classifier trained on generic category phrases suggests
+  a label. Its score is **uncalibrated** and is not a probability of compromise.
+- CVE mentions in imported text are just mentions; there is no live threat
+  intelligence lookup. No response action runs automatically.
+
+These are investigative aids, not a validated security detection product.
+Absence of a finding does not establish safety. An analyst must verify source
+records, approvals, and the surrounding logs before acting.
+
+## Run and verify
+
+Node.js 20 or newer; no paid AI API and no npm dependencies:
 
 ```sh
+npm run build
 npm start
 ```
 
-Visit `http://localhost:9000`. To verify logic:
+Open `http://localhost:9000`. To check parser, engine, API, and Slate bundle:
 
 ```sh
 npm run check
-npm run benchmark
 ```
 
-The benchmark creates 10,000 **distinct synthetic alert IDs** from five
-scenario templates. It measures in-process computation on small case-specific
-event sets. It does not measure realistic SOC data volume, backend deployment
-latency, or a real organization's alert workload. Do not use its throughput
-number as a customer performance claim.
+## Catalyst deployment
 
-## Architecture
+The `main` branch builds a static Slate application using `npm run build`
+and output path `dist`. In the Catalyst **SignalDesk** Slate deployment,
+click **Sync Now** after changes (Auto Deploy is currently off).
+The optional `functions/investigator` Advanced I/O function exposes a
+stateless `POST /api/investigations` endpoint that requires records with each
+request. It is **not deployed by Slate** and has no persistent queue.
+See [deployment details](docs/deployment.md) and
+[architecture and limitations](docs/architecture.md).
 
-- `client/`: zero-dependency responsive web app for Catalyst Web Client
-  Hosting.
-- `functions/investigator/`: dependency-free Node.js Advanced I/O function
-  with case-scoped engine and bundled fixture data.
-- `functions/investigator/model.js`: Laplace-smoothed multinomial Naive
-  Bayes classifier trained on curated synthetic descriptions.
-- `functions/investigator/engine.js`: event correlation within ±2 hours,
-  evidence rules, severity score, and report integrity validation.
-- `functions/investigator/fixtures/kev-snapshot.json`: one curated CISA KEV
-  entry, sourced from the official catalog; it is not a full or live feed.
-
-The current public demo is read-only and stateless. The bundled fixtures are
-the source of truth. Catalyst Data Store integration for saved analyst reviews
-is **not implemented**; do not describe it as implemented.
-
-## API
-
-| Route | Method | Result |
-| --- | --- | --- |
-| `/api/health` | GET | Health and dataset type |
-| `/api/alerts` | GET | Synthetic alerts |
-| `/api/alerts/:id` | GET | Alert details |
-| `/api/investigations` | POST | Run by `{ "alertId": "ALT-1001" }` |
-| `/api/investigations/:id` | GET | Recompute a deterministic case |
-| `/api/investigations/:id/report` | GET | Download cited report |
-
-When deployed, prepend `/server/investigator` to these routes. The local
-Node server also serves the static client for development.
-
-## Deploy on Zoho Catalyst
-
-The dedicated project is `AI-incident-investigator` in the India data center.
-For **Catalyst Slate** Git deployment, the repository root now supports
-`npm run build`, which produces `dist/`. In Slate's advanced options, use
-root `/`, build command `npm run build`, and output path `dist`. This is a
-self-contained browser demo: it runs the same small classifier and evidence
-rules on synthetic cases, without invoking a server API. Slate alone does not
-deploy the `investigator` Advanced I/O function.
-
-Follow [the deployment guide](docs/deployment.md) to upload the two console
-bundles, or use GitHub integration if it is available in your Catalyst account.
-The GitHub Actions workflow is an optional CLI-token deployment method.
-The function bundles its fixtures and needs no runtime downloads. Check the
-project's Basic allowance before moving the app to production.
-
-If Catalyst adjusts the generated project or function metadata, sync the
-canonical `catalyst.json` files back to this repository.
-
-## Security and accuracy
-
-- Data is fictional; IPs use documentation ranges and addresses use
-  `.example` domains.
-- No user-provided URLs, uploads, or external execution are accepted.
-- The exported report distinguishes observed actions from unknown intent.
-- A report finding fails if it references an absent source event.
-- Severity is a transparent rule score, and model output is an uncalibrated
-  category suggestion. Neither is a professional SOC decision.
-- Production customer telemetry, live threat enrichment, authentication for
-  analyst writes, and audit-ready persistence are outside this public demo.
-
-## Provenance
-
-This repository must contain only independently authored code and fictional
-data. An employer's code, data, branding, and measured operational claims
-must not be added without authorization. Tests in this repository do not
-establish a reduction in an employer's manual investigation time.
+Only independently authored code is included. This repository is a personal
+project; it does not establish employer use, SOC performance gains, or a
+measured reduction in investigation time.

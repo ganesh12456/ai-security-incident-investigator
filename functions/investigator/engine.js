@@ -1,114 +1,72 @@
 'use strict';
 const {classify}=require('./model');
-const {alerts:defaultAlerts,events:defaultEvents}=require('./fixtures/scenarios');
-const kev=require('./fixtures/kev-snapshot.json');
-
 const hour=3600000;
-const displayNames={login_failed:'Failed sign-in',login_success:'Successful sign-in',role_granted:'Privilege change',export_created:'Data export',download_completed:'Export download',mfa_success:'MFA success',device_enrolled:'Device enrollment',oauth_consent:'OAuth consent',token_used:'Token use',file_read:'File access',process_alert:'Process alert',approved_change:'Approved change',exploit_alert:'Mail rule alert',mail_open:'Message opened'};
-const formatCategory={credential_access:'Credential access',data_access:'Data access',oauth_abuse:'OAuth consent abuse',benign:'Likely benign'};
-
-function correlate(alert, events=defaultEvents){
-  const seed=events.find(e=>e.id===alert.seedEventId);
-  if(!seed) throw new Error('Seed event missing');
-  const center=new Date(alert.time).getTime();
-  // Restrict scope before graph expansion, preventing cross-case leakage.
-  const candidates=events.filter(e=>Math.abs(new Date(e.time).getTime()-center)<=2*hour);
-  const selected=new Map([[seed.id,seed]]);
-  for(let pass=0;pass<2;pass++){
-    for(const event of candidates){
-      if(selected.has(event.id)) continue;
-      if([...selected.values()].some(link=>link.actor===event.actor ||
-        (link.asset===event.asset && link.ip===event.ip))) selected.set(event.id,event);
-    }
-  }
-  return [...selected.values()].sort((a,b)=>a.time.localeCompare(b.time));
+const labels={credential_access:'Credential access',data_access:'Data access',oauth_abuse:'OAuth consent abuse',benign:'Likely routine activity'};
+const actionNames={login_failed:'Failed sign-in',login_success:'Successful sign-in',role_granted:'Privilege change',export_created:'Export created',download_completed:'Download',oauth_consent:'OAuth consent',token_used:'Token use',file_read:'File access',process_alert:'Process alert',approved_change:'Approved change',malware_alert:'Malware detection',other:'Other activity'};
+function correlate(seed,events){
+  const center=Date.parse(seed.time);
+  const candidates=events.filter(e=>{
+    if(Math.abs(Date.parse(e.time)-center)>2*hour) return false;
+    if(e.id===seed.id) return true;
+    return !!((seed.actor&&e.actor&&seed.actor===e.actor)||
+      (seed.asset&&e.asset&&seed.asset===e.asset&&seed.ip&&e.ip&&seed.ip===e.ip));
+  }).filter(e=>e.id!==seed.id).sort((a,b)=>
+    Math.abs(Date.parse(a.time)-center)-Math.abs(Date.parse(b.time)-center)||a.id.localeCompare(b.id)).slice(0,249);
+  return [seed,...candidates].sort((a,b)=>a.time.localeCompare(b.time)||a.id.localeCompare(b.id));
 }
-function finding(id,title,detail,eventIds,weight,kind='risk'){
-  return {id,title,detail,eventIds,weight,kind};
-}
-function investigate(id, {alerts=defaultAlerts,events=defaultEvents}={}){
-  const alert=alerts.find(a=>a.id===id);
-  if(!alert) return null;
-  const related=correlate(alert,events);
-  const byAction=(action)=>related.filter(e=>e.action===action);
-  const findings=[];
-  const failures=byAction('login_failed'), signins=byAction('login_success');
-  const unusual=signins.filter(e=>e.newDevice);
-  const roles=byAction('role_granted'),exports=byAction('export_created');
-  const downloads=byAction('download_completed');
-  const oauth=byAction('oauth_consent'),tokens=byAction('token_used');
-  const reads=byAction('file_read'),mfa=byAction('mfa_success');
-  const enrollment=byAction('device_enrolled'),changes=byAction('approved_change');
-  if(failures.length && unusual.length)
-    findings.push(finding('F-LOGIN','Failed attempts preceded a new session','Authentication failed before a successful sign-in from the same sample address.',[failures[0].id,unusual[0].id],24));
-  else if(unusual.length)
-    findings.push(finding('F-DEVICE','New device observed','The account used a newly observed device; this alone does not establish compromise.',[unusual[0].id],7));
-  if(roles.length) findings.push(finding('F-ROLE','Privilege was increased','An export role was granted after the sign-in.',[roles[0].id],20));
-  if(exports.length && downloads.length) findings.push(finding('F-EXPORT','Export was created and downloaded','The records show a large export and a completed download; activity after download is unknown.',[exports[0].id,downloads[0].id],29));
-  else if(exports.length) findings.push(finding('F-EXPORT','Export was created','An export was created; no download is established by these events.',[exports[0].id],15));
-  if(oauth.length) findings.push(finding('F-CONSENT','Broad access was granted','A new app received read scopes. The record does not establish whether the user intended this grant.',[oauth[0].id],23));
-  if(tokens.length && reads.length) findings.push(finding('F-TOKEN','Token accessed files','A token was used from another sample address and subsequently read files. External transfer is not evidenced.',[tokens[0].id,reads[0].id],22));
-  if(enrollment.length && mfa.length) findings.push(finding('F-ENROLL','Device change was approved','The help-desk record and MFA success support an authorized device change.',[enrollment[0].id,mfa[0].id],-17,'mitigation'));
-  if(changes.length) findings.push(finding('F-CHANGE','Activity matches an approved change','A change record supports the scheduled build task.',[changes[0].id,...byAction('process_alert').map(e=>e.id)],-15,'mitigation'));
-  const mailAlerts=byAction('exploit_alert'),mailOpens=byAction('mail_open');
-  if(mailAlerts.length) findings.push(finding('F-MAIL','Mail detection rule triggered','The message matched a rule. The record does not establish whether the referenced vulnerability was exploited.',[mailAlerts[0].id,...mailOpens.map(e=>e.id)],19));
-  const cves=[...new Set(related.flatMap(e=>e.cves||[]))];
-  const intelligence=cves.map(cve=>{
-    const match=kev.vulnerabilities.find(v=>v.cveID===cve);
-    return {cve,matched:!!match,name:match?.vulnerabilityName||null,source:kev.source,snapshotDate:kev.snapshotDate};
-  });
-  for(const hit of intelligence.filter(x=>x.matched)){
-    const supporting=related.filter(e=>(e.cves||[]).includes(hit.cve)).map(e=>e.id);
-    findings.push(finding('F-KEV-'+hit.cve,'CVE appears in the KEV snapshot','The catalog lists this CVE; the event alone does not prove exploitation.',supporting,8));
+const finding=(id,title,detail,events,weight,kind='risk')=>({id,title,detail,eventIds:events.map(e=>e.id),weight,kind});
+function investigate(seedId,{events}={}){
+  if(!Array.isArray(events)||!events.length) throw new Error('Import security records first');
+  const seed=events.find(e=>e.id===seedId);if(!seed)return null;
+  const related=correlate(seed,events),byAction=action=>related.filter(e=>e.action===action);
+  const findings=[],firstLater=(items,after)=>items.find(e=>e.time>=after.time);
+  for(const failed of byAction('login_failed')){
+    const success=firstLater(byAction('login_success'),failed);
+    if(success){findings.push(finding('F-AUTH','Failed sign-in followed by success','A failed authentication event precedes a successful one for the correlated identity.',[failed,success],22));break;}
   }
-  const categories=classify(alert.signal+' '+related.map(e=>e.summary).join(' '));
-  const risk=Math.max(0,Math.min(100,18+findings.reduce((n,f)=>n+f.weight,0)));
+  const roles=byAction('role_granted'),exports=byAction('export_created'),downloads=byAction('download_completed');
+  if(roles.length) findings.push(finding('F-ROLE','Privilege change recorded','The linked records contain a role or permission grant. Check who approved it.',[roles[0]],18));
+  if(exports.length){
+    const download=firstLater(downloads,exports[0]);
+    findings.push(download?finding('F-EXPORT','Export followed by download','An export and a later download are recorded. The destination and intent require review.',[exports[0],download],25):
+      finding('F-EXPORT','Export recorded','An export was recorded. These records do not confirm a download.',[exports[0]],12));
+  }else if(downloads.length) findings.push(finding('F-DOWNLOAD','Download recorded','A download was recorded. An earlier export is not established by these records.',[downloads[0]],12));
+  const oauth=byAction('oauth_consent');
+  if(oauth.length) findings.push(finding('F-OAUTH','OAuth consent recorded','Application authorization was observed. Review the scopes and owner intent.',[oauth[0]],18));
+  const tokens=byAction('token_used'),reads=byAction('file_read');
+  if(tokens.length&&reads.length){const read=firstLater(reads,tokens[0]);if(read) findings.push(finding('F-TOKEN','Token use followed by file access','A token was used before linked file access. External transfer is not established.',[tokens[0],read],18));}
+  const malware=byAction('malware_alert'),processes=byAction('process_alert'),approvals=byAction('approved_change');
+  if(malware.length) findings.push(finding('F-MALWARE','Malware alert recorded','A security product reported a detection. Validate it before assuming compromise.',[malware[0]],24));
+  if(processes.length) findings.push(finding('F-PROCESS','Process alert recorded','An endpoint or process alert was recorded. Review the command and authorization.',[processes[0]],14));
+  if(approvals.length) findings.push(finding('F-CHANGE','Approval record present','A related change record exists; verify that its scope and time cover the activity.',[approvals[0]],-8,'context'));
+  if(!findings.length) findings.push(finding('F-OBSERVED','Event requires review','No corroborating rule matched. This does not establish that the activity is safe.',[seed],0,'context'));
+  const ids=new Set(related.map(e=>e.id));
+  if(findings.some(f=>f.eventIds.some(id=>!ids.has(id)))) throw new Error('Evidence integrity check failed');
+  const risk=Math.max(0,Math.min(100,10+findings.reduce((n,f)=>n+f.weight,0)));
   const severity=risk>=75?'Critical':risk>=50?'High':risk>=30?'Medium':'Low';
-  const verdict=risk>=50?'Needs urgent analyst review':risk>=30?'Investigate further':'Likely expected activity';
-  const evidenceIds=new Set(related.map(e=>e.id));
-  for(const item of findings) if(!item.eventIds.length||item.eventIds.some(e=>!evidenceIds.has(e)))
-    throw new Error('Evidence integrity check failed');
-  const actions=risk>=50?[
-    'Confirm the account owner and preserve identity and data-audit logs.',
-    'Review active sessions and privileges with an authorized responder.',
-    'Assess the exported or accessed data before considering containment.'
-  ]:risk>=30?[
-    'Confirm whether the activity was approved by the account owner.',
-    'Review application permissions and follow-on activity.'
-  ]:[
-    'Confirm the linked approval record with the responsible team.',
-    'Close as expected activity only after analyst review.'
-  ];
-  const timeline=related.map(event=>({eventId:event.id,time:event.time,action:displayNames[event.action]||event.action,summary:event.summary,source:event.source}));
+  const categories=classify(related.map(e=>e.action+' '+e.summary).join(' '));
+  const cves=[...new Set(related.flatMap(e=>String(e.summary+' '+e.details).match(/CVE-\d{4}-\d{4,}/gi)||[]))];
   return {
-    id:'INV-'+alert.id,alert,category:{label:formatCategory[categories[0].label],confidence:Number(categories[0].confidence.toFixed(3)),alternatives:categories.slice(1,3)},
-    severity,risk,verdict,findings,timeline,evidence:related,intelligence,
-    recommendations:actions,limitations:[
-      'This is a synthetic demonstration. Model confidence is not a calibrated probability of compromise.',
-      'Correlation shows related records; it does not prove intent or activity outside these records.'
-    ],
-    evaluatedAt:'2026-10-23T00:00:00Z',engineVersion:'0.1.0'
+    id:'INV-'+seed.id,
+    alert:{id:seed.id,title:seed.summary,source:seed.source,actor:seed.actor||'Unknown',asset:seed.asset||'',time:seed.time,signal:seed.summary,baseline:seed.baseline||'Low',scenario:'Imported record'},
+    category:{label:labels[categories[0].label],confidence:Number(categories[0].confidence.toFixed(3)),alternatives:categories.slice(1,3)},
+    severity,risk,verdict:risk>=50?'Prioritize analyst review':'Review linked evidence',
+    findings,timeline:related.map(e=>({eventId:e.id,time:e.time,action:actionNames[e.action]||e.action,summary:e.summary,source:e.source})),evidence:related,
+    intelligence:cves.map(cve=>({cve:cve.toUpperCase(),status:'Mentioned in imported records; no external lookup performed'})),
+    recommendations:['Verify the event and source system with an authorized analyst.','Preserve the original records and confirm whether this activity was approved.','Review surrounding identity, endpoint, and data access logs before taking action.'],
+    limitations:['Only imported records within a two-hour window and matching identity or asset and address were considered.','The classifier score is not a calibrated probability. Rules and CVE mentions do not prove compromise.','No live threat intelligence, SIEM connector, or automated containment is enabled.'],
+    evaluatedAt:new Date().toISOString(),engineVersion:'1.0.0'
   };
 }
 function reportText(result){
-  if(!result) throw new Error('Report requires an investigation');
-  return [
-    'AI SECURITY INCIDENT INVESTIGATOR — SYNTHETIC DEMO',
-    'Case: '+result.id+' | Alert: '+result.alert.id,
-    'Verdict: '+result.verdict+' | Severity: '+result.severity+' | Score: '+result.risk+'/100',
-    'Model suggestion: '+result.category.label+' ('+Math.round(result.category.confidence*100)+'% score; not calibrated)',
-    '',
-    'FINDINGS',
-    ...result.findings.map(f=>'- '+f.title+': '+f.detail+' [Evidence: '+f.eventIds.join(', ')+']'),
-    '',
-    'TIMELINE',
-    ...result.timeline.map(t=>'- '+t.time+' | '+t.summary+' ['+t.eventId+']'),
-    '',
-    'SUGGESTED RESPONSE — HUMAN APPROVAL REQUIRED',
-    ...result.recommendations.map((action,n)=>(n+1)+'. '+action),
-    '',
-    'LIMITATIONS',
-    ...result.limitations.map(l=>'- '+l)
-  ].join('\n');
+  if(!result)throw new Error('Report requires an investigation');
+  return ['SIGNALDESK — INCIDENT INVESTIGATION','Case: '+result.id+' | Seed record: '+result.alert.id,
+    'Assessed severity: '+result.severity+' | Heuristic score: '+result.risk+'/100',
+    'Model category: '+result.category.label+' (uncalibrated score '+Math.round(result.category.confidence*100)+'%)',
+    'Evaluated: '+result.evaluatedAt,'','FINDINGS',
+    ...result.findings.map(f=>'- '+f.title+': '+f.detail+' [Evidence: '+f.eventIds.join(', ')+']'),'','TIMELINE',
+    ...result.timeline.map(t=>'- '+t.time+' | '+t.summary+' ['+t.eventId+']'),'',
+    'RECOMMENDED REVIEW — HUMAN APPROVAL REQUIRED',...result.recommendations.map((x,i)=>(i+1)+'. '+x),'','LIMITATIONS',
+    ...result.limitations.map(l=>'- '+l)].join('\n');
 }
 module.exports={correlate,investigate,reportText};
